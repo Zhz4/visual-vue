@@ -228,6 +228,40 @@ button { ... }
 
 ---
 
+## AI 组件库
+
+本项目 AI 相关组件**优先使用 [antd-design-x-vue](https://antd-design-x-vue.netlify.app)**，能用该库的就用该库，不要自己手写。
+
+常见 AI 场景对应组件：
+
+| 场景 | 组件 |
+|---|---|
+| 对话气泡 | `Bubble` / `BubbleList` |
+| 输入框（带发送按钮） | `Sender` |
+| 思考中状态 | `Thinking` |
+| 欢迎页 | `Welcome` |
+| 提示词建议 | `Prompts` |
+| 模型请求管理 | `useXAgent` |
+| 对话消息流 | `useXChat` |
+| 流式输出 | `XStream` / `XRequest` |
+| 附件上传 | `Attachments` |
+| 会话管理 | `Conversations` |
+
+安装方式：
+
+```bash
+npm install antd-design-x-vue
+```
+
+引入方式：
+
+```typescript
+import { Bubble, Sender } from 'antd-design-x-vue'
+import 'antd-design-x-vue/dist/antd-design-x-vue.css'
+```
+
+---
+
 ## 禁止事项
 
 - 禁止在 `views/` 中直接 import 另一个 `views/` 的组件
