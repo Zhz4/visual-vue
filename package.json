@@ -1,0 +1,28 @@
+{
+  "name": "visual-vue",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vue-tsc -b && vite build",
+    "typecheck": "vue-tsc -b --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "ant-design-vue": "^4.2.6",
+    "ant-design-x-vue": "^1.6.0",
+    "vue": "^3.5.30",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "cross-env": "^10.1.0",
+    "typescript": "^5.9.3",
+    "unocss": "^66.6.7",
+    "vite": "^8.0.1",
+    "vue-tsc": "^3.2.6"
+  }
+}
