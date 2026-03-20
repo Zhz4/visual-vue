@@ -200,20 +200,31 @@ export const router = createRouter({
 
 ---
 
-## 样式规范（UnoCSS + scoped）
+## 样式规范（原子 CSS Uno + scoped）
 
-- 原子类优先使用 UnoCSS，避免写重复 CSS
+- **使用原子 CSS Uno（UnoCSS）**：优先用 UnoCSS 原子类写样式，避免写重复 CSS
+- 原子类直接在模板中组合使用，如 `flex items-center gap-2 p-4 rounded-lg`
 - 组件私有样式使用 `<style scoped>`
 - 使用类选择器，禁止直接使用元素选择器（如 `button {}`）
 - 全局样式放 `src/assets/styles/`，在 `main.ts` 中引入
 - 深层子组件样式用 `:deep(.class)`
 
-```css
-/* ✅ */
+```vue
+<!-- ✅ 原子 CSS Uno 写法 -->
+<template>
+  <div class="flex items-center gap-2 p-4 rounded-lg bg-gray-100">
+    <span class="text-sm font-medium text-gray-800">标题</span>
+  </div>
+</template>
+
+<!-- ❌ 避免在 scoped 中写可被原子类替代的样式 -->
+<style scoped>
+/* ✅ 仅保留无法用原子类表达的样式 */
 .btn { ... }
 
 /* ❌ */
 button { ... }
+</style>
 ```
 
 ---

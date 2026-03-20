@@ -14,9 +14,8 @@ import {
   PlusOutlined,
   DeleteOutlined,
   MessageOutlined,
-  CheckCircleOutlined,
-  RightOutlined,
 } from '@ant-design/icons-vue'
+import ToolCallCard from '@/components/ToolCallCard.vue'
 
 // ── Store & composables ────────────────────────────────────────────────────
 const store = useSessionsStore()
@@ -58,14 +57,6 @@ const TOOL_LABELS: Record<string, string> = {
   lookup_common_enums: '查询枚举值',
 }
 
-// 记录哪些 tool card 被展开
-const expandedTools = ref<Set<string>>(new Set())
-function toggleTool(id: string) {
-  const s = new Set(expandedTools.value)
-  s.has(id) ? s.delete(id) : s.add(id)
-  expandedTools.value = s
-}
-
 // 从历史消息内容中解析 <TOOL_CALL> 标签
 interface ParsedTool { id: string; name: string; params: Record<string, unknown> }
 function parseToolCalls(content: string, msgId: string): ParsedTool[] {
@@ -81,45 +72,24 @@ function parseToolCalls(content: string, msgId: string): ParsedTool[] {
   return result
 }
 
-// 渲染单个工具调用卡片（Claude 桌面版风格）
 function renderToolCard(
   id: string, name: string, params: unknown,
   status: 'running' | 'done', result: unknown,
-  expanded: Set<string>,
 ) {
-  const label = TOOL_LABELS[name] || name
-  const isRunning = status === 'running'
-  const isExpanded = expanded.has(id)
-
-  const header = h('div', { class: 'tc-header', onClick: () => toggleTool(id) }, [
-    h(isRunning ? LoadingOutlined : CheckCircleOutlined, {
-      class: isRunning ? 'tc-icon tc-icon-running' : 'tc-icon tc-icon-done',
-    }),
-    h('span', { class: 'tc-name' }, label),
-    h('span', { class: 'tc-status' }, isRunning ? '查询中' : '已完成'),
-    h(RightOutlined, { class: isExpanded ? 'tc-chevron tc-chevron-open' : 'tc-chevron' }),
-  ])
-
-  const children: ReturnType<typeof h>[] = [header]
-  if (isExpanded) {
-    const rows: ReturnType<typeof h>[] = []
-    if (params && Object.keys(params as object).length) {
-      rows.push(h('p', { class: 'tc-label' }, '请求参数'))
-      rows.push(h('pre', { class: 'tc-pre' }, JSON.stringify(params, null, 2)))
-    }
-    if (result) {
-      rows.push(h('p', { class: 'tc-label' }, '返回结果'))
-      rows.push(h('pre', { class: 'tc-pre' }, typeof result === 'string' ? result : JSON.stringify(result, null, 2)))
-    }
-    if (rows.length) children.push(h('div', { class: 'tc-body' }, rows))
-  }
-  return h('div', { key: id, class: isRunning ? 'tc-card tc-card-running' : 'tc-card' }, children)
+  return h(ToolCallCard, {
+    key: id,
+    toolId: id,
+    label: TOOL_LABELS[name] || name,
+    params,
+    result,
+    status,
+  })
 }
 
 // 渲染助手消息（工具卡片 + 正文）
 function renderAssistantMsg(
   msgId: string, content: string, isLast: boolean,
-  loading: boolean, steps: ThinkingStep[], expanded: Set<string>,
+  loading: boolean, steps: ThinkingStep[],
 ) {
   const nodes: ReturnType<typeof h>[] = []
 
@@ -127,12 +97,12 @@ function renderAssistantMsg(
     // 实时对话：用 thinkingSteps 渲染卡片
     for (const step of steps.filter((s) => s.type === 'tool_call')) {
       const res = steps.find((s) => s.type === 'tool_result' && s.name === step.name)
-      nodes.push(renderToolCard(step.id, step.name, step.data, step.status, res?.data ?? null, expanded))
+      nodes.push(renderToolCard(step.id, step.name, step.data, step.status, res?.data ?? null))
     }
   } else {
     // 历史消息：解析 <TOOL_CALL> 标签
     for (const t of parseToolCalls(content, msgId)) {
-      nodes.push(renderToolCard(t.id, t.name, t.params, 'done', null, expanded))
+      nodes.push(renderToolCard(t.id, t.name, t.params, 'done', null))
     }
   }
 
@@ -142,8 +112,8 @@ function renderAssistantMsg(
       ? '正在查询数据...'
       : steps.length > 0 ? '数据处理中...' : '思考中...'
     nodes.push(
-      h('div', { class: 'bubble-status' }, [
-        h(LoadingOutlined, { class: 'bubble-status-icon' }),
+      h('div', { class: 'flex items-center gap-1.5 text-[13px] text-gray-400' }, [
+        h(LoadingOutlined, { class: 'text-blue-500 animate-spin' }),
         h('span', statusText),
       ]),
     )
@@ -153,16 +123,14 @@ function renderAssistantMsg(
   const clean = content.replace(/<TOOL_CALL>[\s\S]*?<\/TOOL_CALL>/g, '').trim()
   if (clean) nodes.push(h('div', { class: 'md-body', innerHTML: renderMarkdown(clean) }))
 
-  return h('div', { class: 'assistant-msg' }, nodes)
+  return h('div', { class: 'flex flex-col gap-1.5 w-full' }, nodes)
 }
 
 // ── Bubble items ───────────────────────────────────────────────────────────
 const scrollRef = ref<HTMLElement>()
 
 const bubbleItems = computed(() => {
-  // 显式引用响应式数据，确保依赖追踪正确
   const steps = thinkingSteps.value
-  const expanded = expandedTools.value
   const loading = isLoading.value
   const msgs = activeSession.value.messages
 
@@ -173,7 +141,7 @@ const bubbleItems = computed(() => {
     loading: false,
     messageRender:
       m.role === 'assistant'
-        ? () => renderAssistantMsg(m.id, m.content, i === msgs.length - 1, loading, steps, expanded)
+        ? () => renderAssistantMsg(m.id, m.content, i === msgs.length - 1, loading, steps)
         : undefined,
   }))
 })
@@ -458,128 +426,7 @@ async function handleSend(text: string) {
   font-size: 14px;
 }
 
-/* ── 助手消息容器 ─────────────────────────────────────────────────── */
-.assistant-msg {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-}
-
-/* ── 工具调用卡片（Claude 桌面版风格）───────────────────────────── */
-.tc-card {
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fafafa;
-  font-size: 13px;
-  user-select: none;
-}
-
-.tc-card-running {
-  border-color: #91caff;
-  background: #f0f7ff;
-}
-
-.tc-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.tc-header:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.tc-icon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.tc-icon-running {
-  color: #1677ff;
-  animation: spin 1s linear infinite;
-}
-
-.tc-icon-done {
-  color: #52c41a;
-}
-
-.tc-name {
-  flex: 1;
-  font-weight: 500;
-  color: #434343;
-}
-
-.tc-status {
-  font-size: 11px;
-  color: #8c8c8c;
-  margin-right: 4px;
-}
-
-.tc-chevron {
-  font-size: 10px;
-  color: #bfbfbf;
-  transition: transform 0.2s;
-}
-
-.tc-chevron-open {
-  transform: rotate(90deg);
-}
-
-.tc-body {
-  border-top: 1px solid #ebebeb;
-  padding: 10px 12px;
-  background: #fff;
-}
-
-.tc-label {
-  margin: 0 0 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #8c8c8c;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.tc-pre {
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: #434343;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.tc-pre:last-child {
-  margin-bottom: 0;
-}
-
-/* ── 气泡内加载状态 ───────────────────────────────────────────────── */
-.bubble-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #8c8c8c;
-}
-
-.bubble-status-icon {
-  color: #1677ff;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+/* assistant-msg 和 bubble-status 已改用原子类，scoped 样式仅保留无法用原子类表达的部分 */
 
 /* ── Footer ──────────────────────────────────────────────────────── */
 .chat-footer {
