@@ -200,31 +200,136 @@ export const router = createRouter({
 
 ---
 
-## 样式规范（原子 CSS Uno + scoped）
+## 样式规范（原子 CSS UnoCSS）
 
-- **使用原子 CSS Uno（UnoCSS）**：优先用 UnoCSS 原子类写样式，避免写重复 CSS
-- 原子类直接在模板中组合使用，如 `flex items-center gap-2 p-4 rounded-lg`
-- 组件私有样式使用 `<style scoped>`
-- 使用类选择器，禁止直接使用元素选择器（如 `button {}`）
-- 全局样式放 `src/assets/styles/`，在 `main.ts` 中引入
-- 深层子组件样式用 `:deep(.class)`
+本项目使用 **UnoCSS** 作为唯一样式方案。所有样式必须用原子类直接写在模板中，禁止在 `<style scoped>` 里重复描述可原子化的属性。
+
+### 核心原则
+
+| 原则 | 说明 |
+|---|---|
+| **原子类优先** | 所有布局、间距、颜色、字号等直接用 UnoCSS 原子类 |
+| **禁止 scoped 重复** | 凡是能用原子类表达的，不得写进 `<style scoped>` |
+| **合法例外** | 以下情况才允许保留 `<style scoped>` |
+| **全局样式** | 仅 `src/style.css`，用于 CSS 变量和 `innerHTML` 动态内容 |
+
+### 合法的 `<style scoped>` 例外
+
+只有以下情况才允许写 scoped 样式：
+
+```css
+/* ✅ 1. 自定义字体族（UnoCSS 无内置工具类） */
+.code-block { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+/* ✅ 2. webkit 滚动条定制 */
+.code-block::-webkit-scrollbar { width: 4px; }
+.code-block::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+
+/* ✅ 3. 第三方组件深层穿透 */
+:deep(.ant-btn) { border-radius: 6px; }
+
+/* ✅ 4. 复杂 CSS 动画 @keyframes */
+@keyframes slide-in { from { transform: translateY(12px); opacity: 0; } }
+```
+
+### UnoCSS 常用写法速查
+
+**布局**
+```html
+<!-- Flex -->
+<div class="flex items-center justify-between gap-2">
+<div class="flex flex-col gap-4">
+<div class="flex-1 min-w-0">   <!-- flex 子项自适应，防溢出 -->
+
+<!-- 固定尺寸 -->
+<div class="w-[220px] h-screen overflow-hidden">
+
+<!-- Grid -->
+<div class="grid grid-cols-2 gap-4">
+```
+
+**间距**
+```html
+<div class="p-4 px-5 py-3 pt-[14px] pb-[10px]">   <!-- 标准 / 任意值 -->
+<div class="m-0 mt-2 mb-4">
+```
+
+**颜色（优先用设计系统色，特殊色用任意值）**
+```html
+<div class="bg-white text-gray-800 border border-gray-200">
+<div class="bg-[#f5f7fa] text-[#595959] border-[#e8e8e8]">  <!-- 任意色值 -->
+<div class="text-[#1677ff]">   <!-- Ant Design 主色 -->
+```
+
+**字体**
+```html
+<span class="text-sm font-medium">          <!-- text-sm = 14px -->
+<span class="text-[13px] font-semibold">    <!-- 任意字号 -->
+<span class="text-[16px] font-bold text-[#1a1a1a]">
+```
+
+**状态与交互**
+```html
+<!-- hover -->
+<div class="hover:bg-[#f5f5f5] transition-colors duration-150">
+
+<!-- group hover（父悬停控制子元素） -->
+<div class="group">                                          <!-- 父加 group -->
+  <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-150">  <!-- 子响应 -->
+
+<!-- 条件类（active 状态） -->
+<div :class="{ 'bg-[#e6f4ff]': isActive }">
+```
+
+**阴影 / 圆角 / 边框**
+```html
+<div class="rounded-lg shadow-sm border border-gray-100">
+<div class="rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">  <!-- 任意值 -->
+<div class="border-l-[3px] border-l-blue-500">                    <!-- 单侧边框 -->
+```
+
+**文字截断**
+```html
+<span class="overflow-hidden text-ellipsis whitespace-nowrap flex-1">
+```
+
+**图标尺寸（Ant Design Icons）**
+```html
+<RobotOutlined class="text-[20px] text-[#1677ff]" />
+<DeleteOutlined class="text-[12px] text-[#bfbfbf]" />
+```
+
+### 全局 style.css 只写这两类
+
+```css
+/* 1. CSS 设计 token（颜色变量、字体变量） */
+:root {
+  --accent: #aa3bff;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 2. innerHTML 动态内容样式（UnoCSS 无法扫描到） */
+.md-body p { margin: 0 0 8px; }
+.md-body code { background: #f0f0f0; }
+```
+
+**禁止**在 style.css 中写组件布局类样式（如 `#app`、`.sidebar` 等）。
+
+### 反例
 
 ```vue
-<!-- ✅ 原子 CSS Uno 写法 -->
-<template>
-  <div class="flex items-center gap-2 p-4 rounded-lg bg-gray-100">
-    <span class="text-sm font-medium text-gray-800">标题</span>
-  </div>
-</template>
-
-<!-- ❌ 避免在 scoped 中写可被原子类替代的样式 -->
+<!-- ❌ 错误：在 scoped 里写本可用原子类的样式 -->
 <style scoped>
-/* ✅ 仅保留无法用原子类表达的样式 */
-.btn { ... }
-
-/* ❌ */
-button { ... }
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  background: #fff;
+}
 </style>
+
+<!-- ✅ 正确：直接用原子类 -->
+<aside class="flex flex-col w-[220px] bg-white">
 ```
 
 ---
