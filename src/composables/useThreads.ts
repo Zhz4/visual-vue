@@ -68,11 +68,22 @@ export function useThreads() {
       }
       const data: { messages: MessageItem[] } = await res.json()
 
-      const msgs: ChatMessage[] = data.messages.map((m) => ({
+      const raw: ChatMessage[] = data.messages.map((m) => ({
         id: crypto.randomUUID(),
         role: m.role as 'user' | 'assistant',
         content: m.content,
       }))
+
+      // 合并连续的 assistant 消息，使历史记录的渲染风格与实时流式一致
+      const msgs: ChatMessage[] = []
+      for (const m of raw) {
+        const last = msgs[msgs.length - 1]
+        if (last && last.role === 'assistant' && m.role === 'assistant') {
+          last.content += '\n' + m.content
+        } else {
+          msgs.push({ ...m })
+        }
+      }
 
       store.setMessages(sessionId, msgs)
     } catch {

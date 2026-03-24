@@ -42,12 +42,21 @@ function newSession(): Session {
   }
 }
 
+const EMPTY_SESSION: Session = {
+  id: '',
+  backendThreadId: '',
+  title: '',
+  messages: [],
+  createdAt: 0,
+  messagesLoaded: true,
+}
+
 export const useSessionsStore = defineStore('sessions', () => {
-  const sessions = ref<Session[]>([newSession()])
-  const activeId = ref(sessions.value[0].id)
+  const sessions = ref<Session[]>([])
+  const activeId = ref('')
 
   const activeSession = computed(
-    () => sessions.value.find((s) => s.id === activeId.value) ?? sessions.value[0]
+    () => sessions.value.find((s) => s.id === activeId.value) ?? sessions.value[0] ?? EMPTY_SESSION
   )
 
   function addSession() {
@@ -82,6 +91,10 @@ export const useSessionsStore = defineStore('sessions', () => {
     }
     // 按 createdAt 倒序
     sessions.value.sort((a, b) => b.createdAt - a.createdAt)
+    // 若当前 activeId 无效，自动选中排序后的第一个会话
+    if (sessions.value.length > 0 && !sessions.value.find((s) => s.id === activeId.value)) {
+      activeId.value = sessions.value[0].id
+    }
   }
 
   function setMessages(sessionId: string, msgs: ChatMessage[]) {

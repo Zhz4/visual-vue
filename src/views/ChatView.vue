@@ -25,6 +25,10 @@ const { loadingThreads, loadingMessages, loadThreads, loadMessages } =
 
 onMounted(async () => {
   await loadThreads();
+  // 仅当后端无任何历史会话时才创建新对话
+  if (store.sessions.length === 0) {
+    store.addSession();
+  }
   await loadMessages(activeId.value);
 });
 
