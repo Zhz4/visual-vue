@@ -92,7 +92,10 @@ function renderAssistantMsg(
       const textSegment = content.substring(lastOffset, offset).trim();
       if (textSegment) {
         nodes.push(
-          h("div", { class: "md-body", innerHTML: renderMarkdown(textSegment) }),
+          h("div", {
+            class: "md-body",
+            innerHTML: renderMarkdown(textSegment),
+          }),
         );
       }
       lastOffset = offset;
@@ -205,14 +208,7 @@ const bubbleItems = computed(() => {
       loading: false,
       messageRender:
         m.role === "assistant"
-          ? () =>
-              renderAssistantMsg(
-                m.id,
-                m.content,
-                isLast,
-                loading,
-                msgSteps,
-              )
+          ? () => renderAssistantMsg(m.id, m.content, isLast, loading, msgSteps)
           : undefined,
     };
   });
