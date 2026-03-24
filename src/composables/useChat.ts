@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 import { useSessionsStore, CURRENT_USER_ID } from "@/stores/sessions";
 import type { ThinkingStep } from "@/stores/sessions";
 
@@ -65,7 +65,12 @@ export function useChat() {
           const raw = line.slice(6).trim();
           if (raw === "[DONE]") break outer;
           try {
-            handlePayload(JSON.parse(raw), sessionId, assistantId);
+            const parsed = JSON.parse(raw);
+            handlePayload(parsed, sessionId, assistantId);
+            if (parsed.object === "tool_call.chunk") {
+              await nextTick();
+              await new Promise((r) => setTimeout(r, 50));
+            }
           } catch {
             // ignore malformed frames
           }
@@ -78,7 +83,12 @@ export function useChat() {
           const raw = tail.slice(6).trim();
           if (raw && raw !== "[DONE]") {
             try {
-              handlePayload(JSON.parse(raw), sessionId, assistantId);
+              const parsed = JSON.parse(raw);
+              handlePayload(parsed, sessionId, assistantId);
+              if (parsed.object === "tool_call.chunk") {
+                await nextTick();
+                await new Promise((r) => setTimeout(r, 50));
+              }
             } catch {
               /* ignore */
             }

@@ -18,6 +18,10 @@ const bodyRef = ref<HTMLElement>()
 const iconWrap = ref<HTMLElement>()
 const isOpen = ref(false)
 
+const MIN_RUNNING_MS = 600
+const mountedAt = Date.now()
+const displayStatus = ref<'running' | 'done'>(props.status)
+
 const hasContent = computed(() =>
   (!!props.params && Object.keys(props.params as object).length > 0) || !!props.result,
 )
@@ -43,20 +47,31 @@ onMounted(() => {
   })
 })
 
-// ── 运行中 → 完成 动画 ────────────────────────────────────────────────────
+// ── 运行中 → 完成：确保 running 状态至少展示 MIN_RUNNING_MS ──────────────
+function applyDoneAnimation() {
+  displayStatus.value = 'done'
+  if (iconWrap.value) {
+    gsap.fromTo(
+      iconWrap.value,
+      { scale: 0.2, opacity: 0, rotation: -20 },
+      { scale: 1, opacity: 1, rotation: 0, duration: 0.45, ease: 'back.out(3)' },
+    )
+  }
+  if (cardRef.value) {
+    gsap.fromTo(cardRef.value, { scale: 1.025 }, { scale: 1, duration: 0.3, ease: 'back.out(2)' })
+  }
+}
+
 watch(
   () => props.status,
   (next) => {
     if (next !== 'done') return
-    if (iconWrap.value) {
-      gsap.fromTo(
-        iconWrap.value,
-        { scale: 0.2, opacity: 0, rotation: -20 },
-        { scale: 1, opacity: 1, rotation: 0, duration: 0.45, ease: 'back.out(3)' },
-      )
-    }
-    if (cardRef.value) {
-      gsap.fromTo(cardRef.value, { scale: 1.025 }, { scale: 1, duration: 0.3, ease: 'back.out(2)' })
+    const elapsed = Date.now() - mountedAt
+    const remaining = Math.max(0, MIN_RUNNING_MS - elapsed)
+    if (remaining > 0) {
+      setTimeout(applyDoneAnimation, remaining)
+    } else {
+      applyDoneAnimation()
     }
   },
 )
@@ -97,7 +112,7 @@ function toggle() {
   <div
     ref="cardRef"
     class="relative rounded-[10px] overflow-hidden mb-1.5 last:mb-0 transition-shadow duration-200 hover:shadow-md"
-    :class="status === 'running'
+    :class="displayStatus === 'running'
       ? 'border border-blue-200 border-l-[3px] border-l-blue-500 bg-gradient-to-r from-blue-50/80 to-white shadow-sm'
       : 'border border-gray-200 border-l-[3px] border-l-green-500 bg-white shadow-sm'"
   >
@@ -111,9 +126,9 @@ function toggle() {
       <span
         ref="iconWrap"
         class="flex items-center justify-center w-6 h-6 rounded-full text-[13px] shrink-0 transition-colors duration-300"
-        :class="status === 'running' ? 'bg-blue-100 text-blue-500' : 'bg-green-100 text-green-600'"
+        :class="displayStatus === 'running' ? 'bg-blue-100 text-blue-500' : 'bg-green-100 text-green-600'"
       >
-        <LoadingOutlined v-if="status === 'running'" class="animate-spin" />
+        <LoadingOutlined v-if="displayStatus === 'running'" class="animate-spin" />
         <CheckCircleOutlined v-else />
       </span>
 
@@ -125,9 +140,9 @@ function toggle() {
       <!-- 状态胶囊 -->
       <span
         class="text-[11px] font-medium px-2 py-0.5 rounded-full leading-[1.6]"
-        :class="status === 'running' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'"
+        :class="displayStatus === 'running' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'"
       >
-        {{ status === 'running' ? '查询中' : '已完成' }}
+        {{ displayStatus === 'running' ? '查询中' : '已完成' }}
       </span>
 
       <!-- 展开箭头 -->
