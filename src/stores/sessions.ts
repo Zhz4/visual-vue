@@ -13,6 +13,7 @@ export interface ThinkingStep {
   name: string
   data: unknown
   status: 'running' | 'done'
+  contentOffset?: number
 }
 
 export interface Session {

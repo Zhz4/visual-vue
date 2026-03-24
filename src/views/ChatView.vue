@@ -45,30 +45,6 @@ function renderMarkdown(content: string) {
   return marked.parse(content) as string;
 }
 
-interface ParsedTool {
-  id: string;
-  name: string;
-  params: Record<string, unknown>;
-}
-
-function parseToolCalls(content: string, msgId: string): ParsedTool[] {
-  const re =
-    /<TOOL_CALL>\s*工具:\s*(\w+)\s*参数:\s*(\{.*?\})\s*<\/TOOL_CALL>/gs;
-  const result: ParsedTool[] = [];
-  let match: RegExpExecArray | null;
-  let idx = 0;
-  while ((match = re.exec(content)) !== null) {
-    let params: Record<string, unknown> = {};
-    try {
-      params = JSON.parse(match[2]);
-    } catch {
-      /* ignore */
-    }
-    result.push({ id: `${msgId}-tc-${idx++}`, name: match[1], params });
-  }
-  return result;
-}
-
 function getToolLabel(name: string, params: unknown): string {
   if (TOOL_LABELS[name]) return TOOL_LABELS[name];
   if (name === "query_module" && params && typeof params === "object") {
@@ -105,10 +81,26 @@ function renderAssistantMsg(
   const nodes: ReturnType<typeof h>[] = [];
 
   if (isLast && steps.length > 0) {
-    for (const step of steps.filter((s) => s.type === "tool_call")) {
-      const res = steps.find(
-        (s) => s.type === "tool_result" && s.name === step.name,
-      );
+    // 流式场景：根据 contentOffset 将文字与工具卡片交替渲染
+    let lastOffset = 0;
+    const toolCalls = steps.filter((s) => s.type === "tool_call");
+
+    for (let i = 0; i < toolCalls.length; i++) {
+      const step = toolCalls[i];
+      const offset = step.contentOffset ?? lastOffset;
+
+      const textSegment = content.substring(lastOffset, offset).trim();
+      if (textSegment) {
+        nodes.push(
+          h("div", { class: "md-body", innerHTML: renderMarkdown(textSegment) }),
+        );
+      }
+      lastOffset = offset;
+
+      const stepIdx = steps.indexOf(step);
+      const res = steps
+        .slice(stepIdx + 1)
+        .find((s) => s.type === "tool_result" && s.name === step.name);
       nodes.push(
         renderToolCard(
           step.id,
@@ -119,35 +111,78 @@ function renderAssistantMsg(
         ),
       );
     }
+
+    const remaining = content.substring(lastOffset).trim();
+
+    if (loading && !remaining) {
+      const statusText = steps.some((s) => s.status === "running")
+        ? "正在查询数据..."
+        : "数据处理中...";
+      nodes.push(
+        h(
+          "div",
+          { class: "flex items-center gap-1.5 text-[13px] text-gray-400" },
+          [
+            h(LoadingOutlined, { class: "text-blue-500 animate-spin" }),
+            h("span", statusText),
+          ],
+        ),
+      );
+    }
+
+    if (remaining) {
+      nodes.push(
+        h("div", { class: "md-body", innerHTML: renderMarkdown(remaining) }),
+      );
+    }
   } else {
-    for (const t of parseToolCalls(content, msgId)) {
-      nodes.push(renderToolCard(t.id, t.name, t.params, "done", null));
+    // 历史消息：按 <TOOL_CALL> 位置交替渲染文字与工具卡片
+    const re =
+      /<TOOL_CALL>\s*工具:\s*(\w+)\s*参数:\s*(\{.*?\})\s*<\/TOOL_CALL>/gs;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let idx = 0;
+
+    while ((match = re.exec(content)) !== null) {
+      const textBefore = content.substring(lastIndex, match.index).trim();
+      if (textBefore) {
+        nodes.push(
+          h("div", { class: "md-body", innerHTML: renderMarkdown(textBefore) }),
+        );
+      }
+      let params: Record<string, unknown> = {};
+      try {
+        params = JSON.parse(match[2]);
+      } catch {
+        /* ignore */
+      }
+      nodes.push(
+        renderToolCard(`${msgId}-tc-${idx++}`, match[1], params, "done", null),
+      );
+      lastIndex = match.index + match[0].length;
+    }
+
+    const remaining = content.substring(lastIndex).trim();
+
+    if (isLast && loading && !remaining) {
+      nodes.push(
+        h(
+          "div",
+          { class: "flex items-center gap-1.5 text-[13px] text-gray-400" },
+          [
+            h(LoadingOutlined, { class: "text-blue-500 animate-spin" }),
+            h("span", "思考中..."),
+          ],
+        ),
+      );
+    }
+
+    if (remaining) {
+      nodes.push(
+        h("div", { class: "md-body", innerHTML: renderMarkdown(remaining) }),
+      );
     }
   }
-
-  if (isLast && loading && !content) {
-    const statusText = steps.some((s) => s.status === "running")
-      ? "正在查询数据..."
-      : steps.length > 0
-        ? "数据处理中..."
-        : "思考中...";
-    nodes.push(
-      h(
-        "div",
-        { class: "flex items-center gap-1.5 text-[13px] text-gray-400" },
-        [
-          h(LoadingOutlined, { class: "text-blue-500 animate-spin" }),
-          h("span", statusText),
-        ],
-      ),
-    );
-  }
-
-  const clean = content.replace(/<TOOL_CALL>[\s\S]*?<\/TOOL_CALL>/g, "").trim();
-  if (clean)
-    nodes.push(
-      h("div", { class: "md-body", innerHTML: renderMarkdown(clean) }),
-    );
 
   return h("div", { class: "flex flex-col gap-1.5 w-full" }, nodes);
 }
