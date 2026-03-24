@@ -15,6 +15,7 @@ import {
 import ToolCallCard from "@/components/ToolCallCard.vue";
 import ChatSidebar from "@/components/ChatSidebar.vue";
 import ChatWelcome from "@/components/ChatWelcome.vue";
+import { TOOL_LABELS } from "@/constants/index";
 
 // ── Store & composables ────────────────────────────────────────────────────
 const store = useSessionsStore();
@@ -44,21 +45,6 @@ function renderMarkdown(content: string) {
   return marked.parse(content) as string;
 }
 
-// ── Tool card helpers ──────────────────────────────────────────────────────
-const TOOL_LABELS: Record<string, string> = {
-  query_aplus_plans: "A+ 策划查询",
-  query_video_plans: "视频策划查询",
-  query_communication_designs: "传达设计查询",
-  query_video_photography: "视频摄影查询",
-  query_photographer_aplus: "摄影 A+ 查询",
-  recall_user_memories: "读取用户偏好",
-  save_user_memory: "保存用户偏好",
-  delete_user_memory: "删除用户偏好",
-  lookup_api_schema: "查询 API 文档",
-  lookup_common_enums: "查询枚举值",
-  get_current_time: "获取当前时间",
-};
-
 interface ParsedTool {
   id: string;
   name: string;
@@ -83,6 +69,15 @@ function parseToolCalls(content: string, msgId: string): ParsedTool[] {
   return result;
 }
 
+function getToolLabel(name: string, params: unknown): string {
+  if (TOOL_LABELS[name]) return TOOL_LABELS[name];
+  if (name === "query_module" && params && typeof params === "object") {
+    const mod = (params as Record<string, unknown>).module;
+    if (mod && typeof mod === "string") return `查询${mod}`;
+  }
+  return name;
+}
+
 function renderToolCard(
   id: string,
   name: string,
@@ -93,7 +88,7 @@ function renderToolCard(
   return h(ToolCallCard, {
     key: id,
     toolId: id,
-    label: TOOL_LABELS[name] || name,
+    label: getToolLabel(name, params),
     params,
     result,
     status,
@@ -115,7 +110,13 @@ function renderAssistantMsg(
         (s) => s.type === "tool_result" && s.name === step.name,
       );
       nodes.push(
-        renderToolCard(step.id, step.name, step.data, step.status, res?.data ?? null),
+        renderToolCard(
+          step.id,
+          step.name,
+          step.data,
+          step.status,
+          res?.data ?? null,
+        ),
       );
     }
   } else {
@@ -131,16 +132,22 @@ function renderAssistantMsg(
         ? "数据处理中..."
         : "思考中...";
     nodes.push(
-      h("div", { class: "flex items-center gap-1.5 text-[13px] text-gray-400" }, [
-        h(LoadingOutlined, { class: "text-blue-500 animate-spin" }),
-        h("span", statusText),
-      ]),
+      h(
+        "div",
+        { class: "flex items-center gap-1.5 text-[13px] text-gray-400" },
+        [
+          h(LoadingOutlined, { class: "text-blue-500 animate-spin" }),
+          h("span", statusText),
+        ],
+      ),
     );
   }
 
   const clean = content.replace(/<TOOL_CALL>[\s\S]*?<\/TOOL_CALL>/g, "").trim();
   if (clean)
-    nodes.push(h("div", { class: "md-body", innerHTML: renderMarkdown(clean) }));
+    nodes.push(
+      h("div", { class: "md-body", innerHTML: renderMarkdown(clean) }),
+    );
 
   return h("div", { class: "flex flex-col gap-1.5 w-full" }, nodes);
 }
@@ -160,7 +167,14 @@ const bubbleItems = computed(() => {
     loading: false,
     messageRender:
       m.role === "assistant"
-        ? () => renderAssistantMsg(m.id, m.content, i === msgs.length - 1, loading, steps)
+        ? () =>
+            renderAssistantMsg(
+              m.id,
+              m.content,
+              i === msgs.length - 1,
+              loading,
+              steps,
+            )
         : undefined,
   }));
 });
@@ -191,7 +205,10 @@ watch(
   ],
   async () => {
     await nextTick();
-    scrollRef.value?.scrollTo({ top: scrollRef.value.scrollHeight, behavior: "smooth" });
+    scrollRef.value?.scrollTo({
+      top: scrollRef.value.scrollHeight,
+      behavior: "smooth",
+    });
   },
 );
 
@@ -206,19 +223,28 @@ async function handleSend(text: string) {
 
 <template>
   <div class="flex h-screen overflow-hidden bg-[#f5f7fa]">
-
     <ChatSidebar :loading-threads="loadingThreads" />
 
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Header -->
-      <div class="flex items-center gap-[10px] px-5 py-3 bg-white border-b border-[#e8e8e8] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+      <div
+        class="flex items-center gap-[10px] px-5 py-3 bg-white border-b border-[#e8e8e8] shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+      >
         <RobotOutlined class="text-[20px] text-[#1677ff]" />
-        <span class="text-[16px] font-semibold text-[#1a1a1a]">视觉设计协同助手</span>
+        <span class="text-[16px] font-semibold text-[#1a1a1a]"
+          >视觉设计协同助手</span
+        >
       </div>
 
       <!-- Messages -->
-      <div ref="scrollRef" class="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
-        <div v-if="loadingMessages" class="flex-1 flex items-center justify-center">
+      <div
+        ref="scrollRef"
+        class="flex-1 overflow-y-auto p-5 flex flex-col gap-3"
+      >
+        <div
+          v-if="loadingMessages"
+          class="flex-1 flex items-center justify-center"
+        >
           <a-spin tip="加载历史消息..." />
         </div>
 
@@ -238,6 +264,5 @@ async function handleSend(text: string) {
         />
       </div>
     </div>
-
   </div>
 </template>
