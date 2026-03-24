@@ -55,6 +55,7 @@ const TOOL_LABELS: Record<string, string> = {
   delete_user_memory: '删除用户偏好',
   lookup_api_schema: '查询 API 文档',
   lookup_common_enums: '查询枚举值',
+  get_current_time: '获取当前时间',
 }
 
 // 从历史消息内容中解析 <TOOL_CALL> 标签
