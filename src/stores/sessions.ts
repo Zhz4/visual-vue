@@ -5,6 +5,7 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  toolSteps?: ThinkingStep[]
 }
 
 export interface ThinkingStep {
@@ -124,6 +125,12 @@ export const useSessionsStore = defineStore('sessions', () => {
     if (msg) msg.content = content
   }
 
+  function setMessageToolSteps(sessionId: string, msgId: string, steps: ThinkingStep[]) {
+    const s = sessions.value.find((s) => s.id === sessionId)
+    const msg = s?.messages.find((m) => m.id === msgId)
+    if (msg) msg.toolSteps = steps
+  }
+
   function setSessionTitle(sessionId: string, title: string) {
     const s = sessions.value.find((s) => s.id === sessionId)
     if (s && s.title === '新对话') s.title = title.slice(0, 20)
@@ -141,6 +148,7 @@ export const useSessionsStore = defineStore('sessions', () => {
     pushMessage,
     appendToken,
     setMessageContent,
+    setMessageToolSteps,
     setSessionTitle,
   }
 })

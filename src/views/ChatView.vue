@@ -80,8 +80,8 @@ function renderAssistantMsg(
 ) {
   const nodes: ReturnType<typeof h>[] = [];
 
-  if (isLast && steps.length > 0) {
-    // 流式场景：根据 contentOffset 将文字与工具卡片交替渲染
+  if (steps.length > 0) {
+    // 有工具步骤（流式场景或已保存的历史步骤）：根据 contentOffset 将文字与工具卡片交替渲染
     let lastOffset = 0;
     const toolCalls = steps.filter((s) => s.type === "tool_call");
 
@@ -195,23 +195,27 @@ const bubbleItems = computed(() => {
   const loading = isLoading.value;
   const msgs = activeSession.value.messages;
 
-  return msgs.map((m, i) => ({
-    key: m.id,
-    role: m.role,
-    content: m.content,
-    loading: false,
-    messageRender:
-      m.role === "assistant"
-        ? () =>
-            renderAssistantMsg(
-              m.id,
-              m.content,
-              i === msgs.length - 1,
-              loading,
-              steps,
-            )
-        : undefined,
-  }));
+  return msgs.map((m, i) => {
+    const isLast = i === msgs.length - 1;
+    const msgSteps = isLast ? steps : (m.toolSteps ?? []);
+    return {
+      key: m.id,
+      role: m.role,
+      content: m.content,
+      loading: false,
+      messageRender:
+        m.role === "assistant"
+          ? () =>
+              renderAssistantMsg(
+                m.id,
+                m.content,
+                isLast,
+                loading,
+                msgSteps,
+              )
+          : undefined,
+    };
+  });
 });
 
 const roles = {

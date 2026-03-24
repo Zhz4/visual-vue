@@ -85,6 +85,15 @@ export function useChat() {
           }
         }
       }
+      // 流式结束后，将工具调用记录持久化到助手消息上，
+      // 避免发送新消息清空 thinkingSteps 后旧消息的工具卡片消失
+      if (thinkingSteps.value.length > 0) {
+        store.setMessageToolSteps(
+          sessionId,
+          assistantId,
+          [...thinkingSteps.value],
+        );
+      }
     } catch (e) {
       const errMsg = (e as Error).message;
       const hint =
