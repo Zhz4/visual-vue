@@ -55,24 +55,46 @@ body {
   color: #262626;
 }
 
-.md-body p { margin: 0 0 8px; }
-.md-body p:last-child { margin-bottom: 0; }
+.md-body p {
+  margin: 0 0 8px;
+}
 
-.md-body h1, .md-body h2, .md-body h3,
-.md-body h4, .md-body h5, .md-body h6 {
+.md-body p:last-child {
+  margin-bottom: 0;
+}
+
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4,
+.md-body h5,
+.md-body h6 {
   margin: 12px 0 6px;
   font-weight: 600;
   line-height: 1.4;
 }
-.md-body h1 { font-size: 18px; }
-.md-body h2 { font-size: 16px; }
-.md-body h3 { font-size: 14px; }
 
-.md-body ul, .md-body ol {
+.md-body h1 {
+  font-size: 18px;
+}
+
+.md-body h2 {
+  font-size: 16px;
+}
+
+.md-body h3 {
+  font-size: 14px;
+}
+
+.md-body ul,
+.md-body ol {
   padding-left: 20px;
   margin: 6px 0;
 }
-.md-body li { margin: 3px 0; }
+
+.md-body li {
+  margin: 3px 0;
+}
 
 .md-body code {
   background: #f0f0f0;
@@ -90,6 +112,7 @@ body {
   overflow-x: auto;
   margin: 8px 0;
 }
+
 .md-body pre code {
   background: none;
   color: #d4d4d4;
@@ -110,18 +133,56 @@ body {
   margin: 8px 0;
   font-size: 13px;
 }
-.md-body th, .md-body td {
+
+.md-body th,
+.md-body td {
   border: 1px solid #d9d9d9;
   padding: 6px 10px;
   text-align: left;
 }
-.md-body th { background: #fafafa; font-weight: 600; }
 
-.md-body a { color: #1677ff; text-decoration: none; }
-.md-body a:hover { text-decoration: underline; }
+.md-body th {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.md-body a {
+  color: #1677ff;
+  text-decoration: none;
+}
+
+.md-body a:hover {
+  text-decoration: underline;
+}
 
 .md-body hr {
   border: none;
   border-top: 1px solid #e8e8e8;
   margin: 12px 0;
+}
+
+/* ── Streaming token fade-in (ChatGPT style) ──────────────────────────── */
+@keyframes tokenFadeIn {
+  from { opacity: 0; filter: blur(3px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+.token-fade-in {
+  animation: tokenFadeIn 0.4s ease-out forwards;
+}
+
+.streaming > .md-body:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #1677ff;
+  animation: cursorBlink 0.6s steps(2) infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
 }

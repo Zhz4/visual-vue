@@ -20,7 +20,7 @@ import { TOOL_LABELS } from "@/constants/index";
 // ── Store & composables ────────────────────────────────────────────────────
 const store = useSessionsStore();
 const { activeId, activeSession } = storeToRefs(store);
-const { isLoading, thinkingSteps, sendMessage } = useChat();
+const { isLoading, thinkingSteps, sendMessage, lastTokenLen } = useChat();
 const { loadingThreads, loadingMessages, loadThreads, loadMessages } =
   useThreads();
 
@@ -43,6 +43,20 @@ marked.setOptions({ breaks: true });
 function renderMarkdown(content: string) {
   if (!content) return "";
   return marked.parse(content) as string;
+}
+
+function injectFadeIn(html: string, fadeLen: number): string {
+  if (fadeLen <= 0 || !html) return html;
+  const m = html.match(/^([\s\S]*?)([^<]*)((?:<\/[a-zA-Z0-9]+>\s*)*)$/);
+  if (!m || !m[2]) return html;
+  const [, prefix, lastText, closingTags] = m;
+  const n = Math.min(fadeLen, lastText.length);
+  return (
+    prefix +
+    lastText.slice(0, -n) +
+    `<span class="token-fade-in">${lastText.slice(-n)}</span>` +
+    closingTags
+  );
 }
 
 function getToolLabel(name: string, params: unknown): string {
@@ -79,6 +93,7 @@ function renderAssistantMsg(
   steps: ThinkingStep[],
 ) {
   const nodes: ReturnType<typeof h>[] = [];
+  const isStreaming = isLast && loading;
 
   if (steps.length > 0) {
     // 有工具步骤（流式场景或已保存的历史步骤）：根据 contentOffset 将文字与工具卡片交替渲染
@@ -134,8 +149,12 @@ function renderAssistantMsg(
     }
 
     if (remaining) {
+      const html = renderMarkdown(remaining);
       nodes.push(
-        h("div", { class: "md-body", innerHTML: renderMarkdown(remaining) }),
+        h("div", {
+          class: "md-body",
+          innerHTML: isStreaming ? injectFadeIn(html, lastTokenLen.value) : html,
+        }),
       );
     }
   } else {
@@ -181,13 +200,21 @@ function renderAssistantMsg(
     }
 
     if (remaining) {
+      const html = renderMarkdown(remaining);
       nodes.push(
-        h("div", { class: "md-body", innerHTML: renderMarkdown(remaining) }),
+        h("div", {
+          class: "md-body",
+          innerHTML: isStreaming ? injectFadeIn(html, lastTokenLen.value) : html,
+        }),
       );
     }
   }
 
-  return h("div", { class: "flex flex-col gap-1.5 w-full" }, nodes);
+  return h(
+    "div",
+    { class: `flex flex-col gap-1.5 w-full${isStreaming ? " streaming" : ""}` },
+    nodes,
+  );
 }
 
 // ── Bubble items ───────────────────────────────────────────────────────────

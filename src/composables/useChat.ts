@@ -11,6 +11,7 @@ export function useChat() {
   const store = useSessionsStore();
   const isLoading = ref(false);
   const thinkingSteps = ref<ThinkingStep[]>([]);
+  const lastTokenLen = ref(0);
 
   async function sendMessage(text: string) {
     if (!text.trim() || isLoading.value) return;
@@ -111,6 +112,7 @@ export function useChat() {
       store.setMessageContent(sessionId, assistantId, `[错误：${hint}]`);
     } finally {
       isLoading.value = false;
+      lastTokenLen.value = 0;
     }
   }
 
@@ -127,7 +129,10 @@ export function useChat() {
         finish_reason: string | null;
       }>;
       const token = choices?.[0]?.delta?.content;
-      if (token) store.appendToken(sessionId, assistantId, token);
+      if (token) {
+        store.appendToken(sessionId, assistantId, token);
+        lastTokenLen.value = token.length;
+      }
     } else if (obj === "tool_call.chunk") {
       const tc = payload.tool_call as { name: string; arguments: unknown };
       const sess = store.sessions.find((s) => s.id === sessionId);
@@ -156,5 +161,5 @@ export function useChat() {
     }
   }
 
-  return { isLoading, thinkingSteps, sendMessage };
+  return { isLoading, thinkingSteps, sendMessage, lastTokenLen };
 }
